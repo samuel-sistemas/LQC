@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="version" content="1.6.17.1">
+<meta name="revised" content="2026-06-17">
+<meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  /* Ordenamiento de tabla */
+  .summary-table th {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+  }
+  .summary-table th:hover {
+    background: var(--accent);
+    color: white;
+  }
+  .summary-table th.sorted-asc::after,
+  .summary-table th.sorted-desc::after {
+    content: ' ▲';
+    font-size: 0.7em;
+    position: absolute;
+    right: 8px;
+  }
+  .summary-table th.sorted-desc::after { content: ' ▼'; }
+
+  /* ── TEMA OSCURO (predeterminado) ────────────────────────────────────────── */
+  :root {
+    --bg:      #0d0f14;
+    --surface: #13161e;
+    --panel:   #1a1e2a;
+    --border:  #252a38;
+    --accent:  #3b82f6;
+    --accent2: #06b6d4;
+    --ok:      #22c55e;
+    --warn:    #ef4444;
+    --text:    #e2e8f0;
+    --muted:   #64748b;
+    --mono:    'JetBrains Mono', monospace;
+    --sans:    'Syne', sans-serif;
+    --fs: 14px;
+  }
+
+  /* ── TEMA CLARO ──────────────────────────────────────────────────────────── */
+  html.theme-light {
+    --bg:      #f0f4f8;
+    --surface: #ffffff;
+    --panel:   #e8edf3;
+    --border:  #cbd5e1;
+    --accent:  #2563eb;
+    --accent2: #0891b2;
+    --ok:      #16a34a;
+    --warn:    #dc2626;
+    --text:    #1e293b;
+    --muted:   #64748b;
+  }
+
+  html { font-size: var(--fs); height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .logo {
+    width: 60px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 600; color: #fff; flex-shrink: 0;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
+  header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
+
+  .header-controls { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .font-size-ctrl {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 99px; padding: 6px 14px; transition: border-color .2s;
+  }
+  .font-size-ctrl:hover { border-color: var(--accent); }
+
+  .theme-btn {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 99px; padding: 6px 14px; cursor: pointer;
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    transition: all .2s; white-space: nowrap; user-select: none;
+  }
+  .theme-btn:hover { border-color: var(--accent); color: var(--text); }
+  .theme-btn .theme-icon { font-size: .9rem; line-height: 1; }
+  .theme-btn .theme-label { letter-spacing: .04em; }
+
+  /* Filas observadas en MODO OSCURO */
+  html:not(.theme-light) .summary-table tr.row-obs td {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #fca5a5;
+  }
+  html:not(.theme-light) .summary-table tr.row-obs td:first-child {
+    border-left: 3px solid var(--warn);
+  }
+
+  html.theme-light .summary-table td { border-bottom-color: rgba(0,0,0,.08); }
+  html.theme-light .summary-table tbody tr:hover td { background: rgba(37,99,235,.06); }
+  html.theme-light .summary-table tr.row-obs td     { background: rgba(220,38,38,.06); }
+  html.theme-light #console                          { background: var(--panel); }
+  html.theme-light .dropzone:hover,
+  html.theme-light .dropzone.drag                    { background: rgba(37,99,235,.06); }
+  html.theme-light ::-webkit-scrollbar-thumb         { background: #b0bec5; }
+
+  .fsc-label { font-family: var(--mono); color: var(--muted); font-size: .72rem; user-select: none; line-height: 1; }
+  .fsc-big { font-size: 1rem; }
+  .fsc-pct { font-family: var(--mono); font-size: .62rem; color: var(--accent2); min-width: 32px; text-align: right; }
+  #font-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 4px; background: var(--border);
+    border-radius: 99px; outline: none; cursor: pointer;
+  }
+  #font-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer; transition: background .15s;
+  }
+  #font-slider::-webkit-slider-thumb:hover { background: var(--accent2); }
+  #font-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+
+  /* APP LAYOUT — panel de control arriba (horizontal), reporte abajo (vertical) */
+  .app { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+  /* PANEL DE CONTROL (antes sidebar lateral) */
+  aside {
+    width: 100%; flex-shrink: 0;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex; flex-direction: row; align-items: stretch; flex-wrap: wrap;
+    gap: 18px;
+    overflow-x: auto; overflow-y: visible;
+    max-height: 38vh;
+  }
+  .panel-block {
+    display: flex; flex-direction: column; gap: 8px;
+    min-width: 0;
+  }
+  .panel-block.grow { flex: 1; min-width: 220px; }
+  .section-label {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 0;
+  }
+
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 8px 14px;
+    text-align: center; cursor: pointer; transition: all .2s; position: relative;
+    width: 240px; flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(59,130,246,.06); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .dropzone .icon { font-size: 1.3rem; margin-bottom: 4px; }
+  .dropzone p { font-size: .72rem; color: var(--muted); line-height: 1.4; }
+  .dropzone strong { color: var(--text); display: block; font-size: .8rem; margin-bottom: 2px; }
+  #file-count { font-family: var(--mono); font-size: .68rem; color: var(--accent2); margin-top: 4px; min-height: 14px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap: 8px; width: 100%; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; }
+  .stat-card .val { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; line-height: 1; margin-bottom: 2px; }
+  .stat-card .lbl { font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-card.ok .val  { color: var(--ok); }
+  .stat-card.err .val { color: var(--warn); }
+  .stat-card.info .val { color: var(--accent2); }
+  .stat-card.total .val { color: var(--accent); }
+  .stat-card.fatal {
+    
+    border-color: rgba(239,68,68,.3);
+    background: rgba(239,68,68,.05);
+  }
+  .stat-card.fatal .val { color: var(--warn); }
+
+  .actions-row { display: flex; flex-direction: column; gap: 8px; width: 180px; flex-shrink: 0; }
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: none; border-radius: 9px; cursor: pointer;
+    font-family: var(--sans); font-weight: 600; font-size: .78rem;
+    padding: 9px 10px; width: 100%; transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+  .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--text); }
+  .btn-outline:disabled { opacity: .3; cursor: not-allowed; }
+
+  .console-wrap { flex: 1; min-height: 0; min-width: 260px; display: flex; flex-direction: column; gap: 8px; }
+  #console {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px; overflow-y: auto; font-family: var(--mono);
+    font-size: .65rem; line-height: 1.6; color: var(--muted);
+    min-height: 150px; max-height: 110px;
+  }
+  #console .line-ok   { color: var(--ok); }
+  #console .line-err  { color: var(--warn); }
+  #console .line-info { color: var(--accent2); }
+  #console .line-done { color: var(--accent); font-weight: 700; }
+
+  #progress-wrap { display: none; min-width: 160px; }
+  #progress-bar-bg { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .1s; border-radius: 99px; }
+  #progress-label { font-family: var(--mono); font-size: .6rem; color: var(--muted); text-align: right; margin-top: 4px; }
+
+  /* MAIN AREA — el reporte ocupa todo el espacio inferior restante */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-height: 0; }
+
+  #empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: var(--muted); gap: 12px; text-align: center;
+  }
+  #empty .big { font-size: 3rem; opacity: .15; }
+  #empty p { font-size: .82rem; }
+
+  /* REPORT AREA (única vista, siempre horizontal) */
+  #report-area {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .summary-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .summary-footer {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    padding: 8px 24px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .summary-table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: .7rem; white-space: nowrap; }
+  .summary-table thead { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 2px solid var(--accent); }
+  .summary-table th { padding: 10px 12px; text-align: left; font-size: .6rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 9px 12px; border-bottom: 1px solid rgba(37,42,56,.5); color: var(--text); }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tbody tr:hover td { background: rgba(59,130,246,.04); }
+  .summary-table tr.row-obs td { background: rgba(239,68,68,.04); }
+  .summary-table tr.row-obs td:last-child { color: var(--warn); }
+  .summary-table tr.row-ok  td:last-child { color: var(--ok); }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: .6rem; font-weight: 700; letter-spacing: .04em; }
+  .badge-lc  { background: rgba(59,130,246,.15); color: var(--accent); }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* ── BOTÓN EXPORTAR PDF ─────────────────────────────────────────────────── */
+  .summary-pdf-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  .btn-pdf {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #fff; border: none; border-radius: 9px;
+    padding: 9px 18px; font-family: var(--sans); font-size: .82rem;
+    font-weight: 600; cursor: pointer; letter-spacing: .02em;
+    box-shadow: 0 2px 8px rgba(225,29,72,.25); transition: all .15s;
+  }
+  .btn-pdf:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(225,29,72,.35); }
+  .btn-pdf:active { transform: translateY(0); }
+  .btn-pdf svg { flex-shrink: 0; }
+  .btn-pdf:disabled { opacity: .3; cursor: not-allowed; }
+
+
+  /* ── IMPRESIÓN / PDF ───────────────────────────────────────────────────── */
+  @media print {
+    body > * { display: none !important; }
+    #pdf-print-area { display: block !important; }
+
+    #pdf-print-area {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: #000;
+      background: #fff;
+    }
+
+    @page { margin: 10mm; size: A4 landscape; }
+
+    .pdf-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e40af;
+    }
+    .pdf-header h2 { font-size: 13pt; color: #1e40af; font-weight: bold; margin: 0; }
+    .pdf-header p  { font-size: 8pt; color: #555; margin: 2px 0 0; }
+    .pdf-header .pdf-meta { text-align: right; font-size: 8pt; color: #555; }
+
+    .pdf-summary-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+    .pdf-summary-table thead tr { background: #1e40af !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-summary-table th {
+      background: #1e40af !important; color: #fff !important;
+      padding: 5px 4px; text-align: left; font-size: 7pt; font-weight: bold;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .pdf-summary-table td { padding: 4px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    .pdf-summary-table tr:nth-child(even) td { background: #f8faff; }
+    .pdf-summary-table tr.pdf-row-obs td    { background: #fef2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-summary-table tr.pdf-row-obs td:last-child { color: #b91c1c; font-weight: bold; }
+    .pdf-summary-table tr.pdf-row-ok  td:last-child { color: #15803d; font-weight: bold; }
+
+    .pdf-footer-note { font-size: 7pt; color: #9ca3af; text-align: center; margin-top: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">LQC</div>
+  <div>
+    <h1>ANALIZADOR XML <span>&middot; Liquidaciones de Compra &middot; Comercio Amazon&#237;a</span></h1>
+  </div>
+  <div class="header-controls">
+    <div class="font-size-ctrl" title="Ajustar tama&#241;o de texto">
+      <span class="fsc-label" title="Texto m&#225;s peque&#241;o">A</span>
+      <input type="range" id="font-slider" min="80" max="130" value="100" step="5"
+             oninput="applyFontScale(this.value)"/>
+      <span class="fsc-label fsc-big" title="Texto m&#225;s grande">A</span>
+      <span class="fsc-pct" id="font-pct">100%</span>
+    </div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+      <span class="theme-icon" id="theme-icon">🌙</span>
+      <span class="theme-label" id="theme-label">OSCURO</span>
+    </button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- PANEL DE CONTROL (horizontal, parte superior) -->
+  <aside>
+    <div class="panel-block">
+      <p class="section-label">Cargar XMLs</p>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple accept=".xml"/>
+        <div class="icon">📂</div>
+        <strong>Seleccionar archivos XML</strong>
+        <p>o arrastra y suelta aqu&#237;<br/>XML de Liquidaciones de Compra SUNAT</p>
+        <div id="file-count"></div>
+      </div>
+    </div>
+
+    <div class="panel-block">
+      <p class="section-label">Acciones</p>
+      <div class="actions-row">
+        <button class="btn btn-primary" id="btn-analyze" disabled onclick="analyze()">▶ ANALIZAR</button>
+        <button class="btn btn-outline" id="btn-export"  disabled onclick="exportExcel()">&#8595; Excel</button>
+        <button class="btn btn-outline" onclick="clearAll()">✕ Limpiar</button>
+        <button class="btn-pdf" id="btn-exportpdf"  disabled onclick="exportPdfSummary()" title="Exportar reporte a PDF (hoja horizontal)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>Exportar PDF</button>
+      </div>
+    </div>
+    
+    <div class="panel-block grow">
+      <p class="section-label">Resumen</p>
+      <div class="stats-grid">
+        <div class="stat-card total"><div class="val" id="s-total">0</div><div class="lbl">Total</div></div>
+        <div class="stat-card ok">  <div class="val" id="s-ok">0</div>   <div class="lbl">OK</div></div>
+        <div class="stat-card err"> <div class="val" id="s-obs">0</div>  <div class="lbl">Observados</div></div>
+        <div class="stat-card info"><div class="val" id="s-kgm">0</div>  <div class="lbl">Unid. ≠ KGM</div></div>
+        <div class="stat-card fatal"><div class="val" id="s-err">0</div>  <div class="lbl">Err&oacute;neos (No le&iacute;dos)</div></div>
+      </div>
+      <div id="progress-wrap">
+        <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+        <div id="progress-label">0 / 0</div>
+      </div>
+    </div>
+
+
+
+    <div class="panel-block console-wrap">
+      <p class="section-label">Consola</p>
+      <div id="console"><span class="line-info">Sistema listo. Cargue archivos XML para comenzar.</span><br/></div>
+    </div>
+  </aside>
+
+  <!-- MAIN (vertical, parte media/inferior — único reporte) -->
+  <main>
+    <div id="empty">
+      <div class="big">🗂️</div>
+      <p>Cargue archivos XML y presione <strong>ANALIZAR</strong><br/>para ver el reporte aqu&#237;.</p>
+    </div>
+
+    <div id="report-area"></div>
+  </main>
+</div>
+
+<script>
+// ─── RUC EMPRESA OBJETIVO ────────────────────────────────────────────────────
+// Las Liquidaciones de Compra de este reporte deben estar dirigidas
+// exclusivamente a Comercio Amazonía S.A.
+const RUC_COMERCIO_AMAZONIA = '20603964153';
+
+/** Tipo de ubicación esperado para el Cliente (Comercio Amazonía), catálogo 60 */
+const TIPO_UBICACION_CLIENTE_ESPERADO = '05';
+/** Tipo de ubicación esperado para la Empresa (lugar de entrega), catálogo 60 */
+const TIPO_UBICACION_EMPRESA_ESPERADO = '01';
+/** Unidad de medida esperada */
+const UNIDAD_MEDIDA_ESPERADA = 'KGM';
+/** Valor unitario máximo permitido antes de observar */
+const VALOR_UNITARIO_MAX = 20;
+
+/**
+ * Lista de direcciones de entrega (DeliveryLocation) permitidas/conocidas.
+ * Tomada tal cual del script Python de referencia.
+ */
+const DIRECCIONES_PERMITIDAS = [
+  "AV.  AVENIDA JAEN S/N C.P. C.POBLADO PALO BLANCO",
+  "AV.  AVENIDA PAKAMUROS 2516 SEC. SECTOR LINDEROS LOTE. 04  ",
+  "AV.  AVENIDA SAN FRANCISCO 0017 CAS. CASERIO PUERTO CHINCHIPE",
+  "AV.  AVENIDA SAN JUAN BAUTISTA 366 C.P. C.POBLADO CHURUYACU",
+  "AV.  AVENIDA VIA DE EVITAMIENTO C-24",
+  "CAL. CALLE COMERCIO S/N CAS. CASERIO BARRO NEGRO",
+  "CAR. CARRETERA FERNANDO B. TERRY - C.P. C.POBLADO PERLA DE INDANE KM. 491 ",
+  "CAR. CARRETERA FERNANDO B. TERRY - C.P. C.POBLADO PERLA DE INDAÑE KM. 491 ",
+  "CAR. CARRETERA FERNANDO B. TERRY - C.P. C.POBLADO PERLA DE INDAÃE KM. 491 ",
+  "CAR. CARRETERA FERNANDO B. TERRY - CAS. CASERIO PIONEROS ALTO KM. 415 ",
+  "CAR. CARRETERA NAMBALLE - SEC. SECTOR CAMPANAS KM. 126 ",
+  "CAS. CASERIO SECTOR CHIPLE",
+  "JR.  JIRON MARISCAL CASTILLA S/N",
+  "JR.  JIRON GREGORIA KATARI 454 SEC. SECTOR SAN LUIS MANZANA SL47 ? LOTE 4A",
+  "AV.  AVENIDA LIMA 1007"
+];
+// Set normalizado (trim) para comparación tolerante a espacios extremos
+const DIRECCIONES_PERMITIDAS_SET = new Set(DIRECCIONES_PERMITIDAS.map(d => d.trim()));
+
+// ─── NAMESPACES UBL SUNAT ─────────────────────────────────────────────────────
+const NS = {
+  cac: 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+  cbc: 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+};
+
+// ─── ESTADO GLOBAL ────────────────────────────────────────────────────────────
+let xmlFiles = [];
+let results  = [];
+let errorCount = 0;
+
+// ─── HELPERS DOM ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function log(msg, type = '') {
+  const div  = $('console');
+  const span = document.createElement('span');
+  if (type) span.className = 'line-' + type;
+  span.textContent = msg;
+  div.appendChild(span);
+  div.appendChild(document.createElement('br'));
+  div.scrollTop = div.scrollHeight;
+}
+
+function setProgress(done, total) {
+  $('progress-bar').style.width = (done / total * 100) + '%';
+  $('progress-label').textContent = `${done} / ${total} archivos`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  const doc = new DOMParser().parseFromString(s, 'text/html');
+  return doc.documentElement.textContent;
+}
+
+function fmt(n) { return (n === null || n === undefined || n === '') ? '0.00' : Number(n).toFixed(2); }
+
+// ─── HELPERS NAVEGACIÓN XML ───────────────────────────────────────────────────
+function findAllByLocal(root, localName) {
+  if (!root) return [];
+  try {
+    return Array.from(root.querySelectorAll(localName));
+  } catch (e) { /* fallback abajo */ }
+  const result = [];
+  const walk = node => {
+    for (const c of node.children) {
+      if (c.localName === localName) result.push(c);
+      walk(c);
+    }
+  };
+  walk(root);
+  return result;
+}
+
+function xText(root, localPath, fallback = '') {
+  const parts = localPath.split('/');
+  let nodes = [root];
+  for (const part of parts) {
+    const [pfx, local] = part.includes(':') ? part.split(':') : ['', part];
+    const nsUri = pfx ? NS[pfx] : null;
+    const next = [];
+    for (const n of nodes) {
+      for (const k of n.children) {
+        const kLocal = k.localName;
+        const kNs    = k.namespaceURI;
+        if (kLocal === local && (!nsUri || kNs === nsUri)) next.push(k);
+      }
+    }
+    nodes = next;
+    if (!nodes.length) return fallback;
+  }
+  return nodes[0]?.textContent?.trim() || fallback;
+}
+
+function xAttr(root, localPath, attrName, fallback = '') {
+  const parts = localPath.split('/');
+  let nodes = [root];
+  for (const part of parts) {
+    const [pfx, local] = part.includes(':') ? part.split(':') : ['', part];
+    const nsUri = pfx ? NS[pfx] : null;
+    const next = [];
+    for (const n of nodes) {
+      for (const k of n.children) {
+        if (k.localName === local && (!nsUri || k.namespaceURI === nsUri)) next.push(k);
+      }
+    }
+    nodes = next;
+    if (!nodes.length) return fallback;
+  }
+  return nodes[0]?.getAttribute(attrName) || fallback;
+}
+
+/**
+ * sanitizeXML
+ * Limpia errores comunes de los emisores antes de intentar parsear
+ * (igual criterio que el analizador de facturas).
+ */
+function sanitizeXML(text) {
+  if (!text) return '';
+  let clean = text;
+  clean = clean.replace(/<!\\\[CDATA\\\[/g, '<![CDATA[');
+  clean = clean.replace(/\\\]\\\]>/g, ']]>');
+  clean = clean.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#)/g, '&amp;');
+  clean = clean.replace(/xmlns:schemaLocation/g, 'xsi:schemaLocation');
+  return clean;
+}
+
+// ─── PARSE XML — LIQUIDACIÓN DE COMPRA ───────────────────────────────────────
+/**
+ * parseXML
+ * Parsea un XML de Liquidación de Compra SUNAT (UBL 2.1, SelfBilledInvoice)
+ * y devuelve un objeto plano con todos los campos necesarios para el reporte.
+ *
+ * Estructura particular de la Liquidación de Compra (a diferencia de la Factura):
+ *   - El RECEPTOR (comprador / nuestra empresa) está en AccountingCustomerParty.
+ *   - El EMISOR DEL BIEN (vendedor, persona natural sin RUC) está en
+ *     AccountingSupplierParty, identificado normalmente con DNI.
+ *   - La dirección de entrega (lugar de la operación / almacén de la empresa)
+ *     está en DeliveryTerms > DeliveryLocation.
+ *   - La glosa general del documento va en cbc:Note (no tiene relación con
+ *     la Ley de Amazonía como en las facturas).
+ */
+function parseXML(xmlText, filename) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(xmlText, 'application/xml');
+  const root   = doc.documentElement;
+
+  if (doc.querySelector('parsererror')) throw new Error('XML malformado');
+
+  // ── VALIDACIÓN DE TIPO DE DOCUMENTO ──────────────────────────────────────
+  // Este aplicativo solo procesa Liquidaciones de Compra, identificadas por
+  // InvoiceTypeCode = "04" (catálogo 01 SUNAT). Cualquier otro código
+  // (factura, boleta, nota de crédito, etc.) se considera un documento
+  // ERRÓNEO: no se agrega al reporte, se cuenta en "Erróneos (No leídos)"
+  // y se informa el motivo en la consola.
+  const TIPO_DOC_ESPERADO = '04';
+  const tipoDocCode = xText(root, 'cbc:InvoiceTypeCode');
+  if (tipoDocCode !== TIPO_DOC_ESPERADO) {
+    throw new Error(`Tipo de documento "${tipoDocCode || '—'}" no es Liquidaci\u00f3n de Compra (c\u00f3digo ${TIPO_DOC_ESPERADO})`);
+  }
+
+  // ── CABECERA ──────────────────────────────────────────────────────────────
+  const docId = xText(root, 'cbc:ID');
+  const fecha = xText(root, 'cbc:IssueDate');
+
+  // Glosa general del documento (Note a nivel raíz)
+  const glosa = xText(root, 'cbc:Note');
+
+  // ── CLIENTE COMERCIO AMAZONÍA (nuestra empresa, AccountingCustomerParty) ────
+  // Solo se usa para validar el RUC; no tiene tipo de ubicación relevante en este flujo.
+  const rucCliente   = xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID');
+  const razonCliente = xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName');
+
+  // ── PROVEEDOR (vendedor / persona natural, AccountingSupplierParty) ─────────
+  // NOTA: en el script Python de referencia, los campos "TIPO UBICACION CLIENTE"
+  // y "DIRECCION CLIENTE" en realidad provienen de AccountingSupplierParty
+  // (el vendedor persona natural), no de AccountingCustomerParty. Se respeta
+  // esa misma ruta para mantener la lógica de negocio original.
+  const dniProveedor   = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID');
+  const nombreProveedor = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName');
+  const tipoUbicCliente = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:RegistrationAddress/cbc:AddressTypeCode');
+
+  const dirProvLine = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:RegistrationAddress/cac:AddressLine/cbc:Line');
+  const dirProvDistrito = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:RegistrationAddress/cbc:District');
+  const dirProvProvincia = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:RegistrationAddress/cbc:CityName');
+  const dirProvDepartamento = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:RegistrationAddress/cbc:CountrySubentity');
+  const dirProveedor = [dirProvLine, dirProvDepartamento, dirProvProvincia, dirProvDistrito].some(Boolean)
+    ? `${dirProvLine} ${dirProvDepartamento}-${dirProvProvincia}-${dirProvDistrito}`.trim()
+    : '';
+
+  // ── ENTREGA (DeliveryTerms > DeliveryLocation) — ubicación de la empresa ────
+  const tipoUbicEmpresa = xText(root, 'cac:DeliveryTerms/cac:DeliveryLocation/cbc:LocationTypeCode');
+  const dirEmpLine = xText(root, 'cac:DeliveryTerms/cac:DeliveryLocation/cac:Address/cac:AddressLine/cbc:Line');
+  const dirEmpDistrito = xText(root, 'cac:DeliveryTerms/cac:DeliveryLocation/cac:Address/cbc:District');
+  const dirEmpProvincia = xText(root, 'cac:DeliveryTerms/cac:DeliveryLocation/cac:Address/cbc:CityName');
+  const dirEmpDepartamento = xText(root, 'cac:DeliveryTerms/cac:DeliveryLocation/cac:Address/cbc:CountrySubentity');
+  const dirEmpresaCompleta = [dirEmpLine, dirEmpDepartamento, dirEmpProvincia, dirEmpDistrito].some(Boolean)
+    ? `${dirEmpLine} ${dirEmpDepartamento}-${dirEmpProvincia}-${dirEmpDistrito}`.trim()
+    : '';
+  // dirEmpLine "puro" (sin concatenar ubigeo) — es lo que se compara contra la lista permitida,
+  // igual que el script Python (que valida contra DIRECCION2 sin concatenar ubigeo).
+  const dirEmpLineTrim = (dirEmpLine || '').trim();
+
+  // ── ÍTEM / LÍNEA DE DETALLE (las Liquidaciones de Compra SUNAT traen 1 línea) ─
+  const lineNodes = findAllByLocal(root, 'InvoiceLine');
+  const primeraLinea = lineNodes[0] || null;
+
+  const descripcion = primeraLinea ? (findAllByLocal(primeraLinea, 'Description')[0]?.textContent?.trim() || '') : '';
+  const cantidadNode = primeraLinea ? findAllByLocal(primeraLinea, 'InvoicedQuantity')[0] : null;
+  const cantidad = cantidadNode ? parseFloat(cantidadNode.textContent?.trim() || '0') : 0;
+  const unidadMedida = cantidadNode ? (cantidadNode.getAttribute('unitCode') || '') : '';
+
+  // Valor unitario: PricingReference > AlternativeConditionPrice > PriceAmount
+  const valorUnitario = primeraLinea
+    ? parseFloat(findAllByLocal(primeraLinea, 'PriceAmount')[0]?.textContent?.trim() || '0')
+    : 0;
+
+  // ── REFERENCIA LCE (AdditionalDocumentReference) ────────────────────────────
+  const lceAplicada = xText(root, 'cac:AdditionalDocumentReference/cbc:ID');
+
+  // ── MONTOS PRINCIPALES ───────────────────────────────────────────────────────
+  const valorCompra = parseFloat(xText(root, 'cac:LegalMonetaryTotal/cbc:LineExtensionAmount', '0')) || 0;
+  const totalNeto   = parseFloat(xText(root, 'cac:LegalMonetaryTotal/cbc:PayableAmount', '0')) || 0;
+  const aplicacion  = parseFloat(xText(root, 'cac:LegalMonetaryTotal/cbc:PrepaidAmount', '0')) || 0;
+  const valorVenta  = parseFloat(xText(root, 'cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', '0')) || 0;
+
+  // ── IGV — TaxTotal global del documento (código de tributo 1000 = IGV) ───────
+  let igv = 0;
+  const globalTaxSubtotals = findAllByLocal(root, 'TaxSubtotal');
+  let igvEncontrado = false;
+  for (const ts of globalTaxSubtotals) {
+    const schemeNodes = findAllByLocal(ts, 'TaxScheme');
+    if (schemeNodes.length > 0) {
+      const schemeId = findAllByLocal(schemeNodes[0], 'ID')[0]?.textContent?.trim();
+      if (schemeId === '1000') {
+        igv = parseFloat(findAllByLocal(ts, 'TaxAmount')[0]?.textContent?.trim() || '0');
+        igvEncontrado = true;
+        break;
+      }
+    }
+  }
+  // Fallback: TaxTotal/TaxAmount a nivel raíz si no se encontró el subtotal de IGV
+  if (!igvEncontrado) {
+    igv = parseFloat(xText(root, 'cac:TaxTotal/cbc:TaxAmount', '0')) || 0;
+  }
+
+  // ── VALIDACIONES / DICTAMEN ──────────────────────────────────────────────────
+  const obsArr = [];
+
+  // 1) RUC del cliente debe ser Comercio Amazonía
+  const rucClienteObs = !!(rucCliente && rucCliente !== RUC_COMERCIO_AMAZONIA);
+  if (rucClienteObs) {
+    obsArr.push(`RUC CLIENTE ${rucCliente} NO ES COMERCIO AMAZON&Iacute;A`.replace('&Iacute;','Í'));
+  }
+
+  // 2) Tipo de ubicación del Cliente debe ser 05
+  const tipoUbicClienteObs = tipoUbicCliente !== TIPO_UBICACION_CLIENTE_ESPERADO;
+  if (tipoUbicClienteObs) {
+    obsArr.push(`TIPO UBICACI\u00d3N CLIENTE "${tipoUbicCliente || '—'}" (ESPERADO ${TIPO_UBICACION_CLIENTE_ESPERADO})`);
+  }
+
+  // 3) Tipo de ubicación de la Empresa (entrega) debe ser 01
+  const tipoUbicEmpresaObs = tipoUbicEmpresa !== TIPO_UBICACION_EMPRESA_ESPERADO;
+  if (tipoUbicEmpresaObs) {
+    obsArr.push(`TIPO UBICACI\u00d3N EMPRESA "${tipoUbicEmpresa || '—'}" (ESPERADO ${TIPO_UBICACION_EMPRESA_ESPERADO})`);
+  }
+
+  // 4) Dirección de entrega debe estar en la lista de direcciones permitidas
+  const dirEmpresaObs = !DIRECCIONES_PERMITIDAS_SET.has(dirEmpLineTrim) && dirEmpLineTrim !== '';
+  const dirEmpresaVacia = dirEmpLineTrim === '';
+  if (dirEmpresaObs) {
+    obsArr.push('DIRECCI\u00d3N DE EMPRESA NO REGISTRADA EN LA LISTA PERMITIDA');
+  } else if (dirEmpresaVacia) {
+    obsArr.push('SIN DIRECCI\u00d3N DE ENTREGA');
+  }
+
+  // 5) Unidad de medida debe ser KGM
+  const unidadMedidaObs = unidadMedida !== UNIDAD_MEDIDA_ESPERADA;
+  if (unidadMedidaObs) {
+    obsArr.push(`UNIDAD DE MEDIDA "${unidadMedida || '—'}" (ESPERADO ${UNIDAD_MEDIDA_ESPERADA})`);
+  }
+
+  // 6) Sin glosa
+  const glosaObs = !glosa || glosa.trim() === '';
+  if (glosaObs) {
+    obsArr.push('SIN GLOSA EN EL COMPROBANTE');
+  }
+
+  // 7) Valor unitario alto
+  const valorUnitarioObs = valorUnitario > VALOR_UNITARIO_MAX;
+  if (valorUnitarioObs) {
+    obsArr.push(`VALOR UNITARIO ${fmt(valorUnitario)} SUPERA EL L\u00cdMITE DE ${VALOR_UNITARIO_MAX.toFixed(2)}`);
+  }
+
+  // 8) IGV mayor a cero (las Liquidaciones de Compra en Amazonía deben ir exoneradas)
+  const igvObs = igv > 0;
+  if (igvObs) {
+    obsArr.push(`IGV ${fmt(igv)} MAYOR A CERO`);
+  }
+
+  const dictamen = obsArr.length ? 'OBSERVADO: ' + obsArr.join(' | ') : 'OK';
+
+  return {
+    file: filename,
+    docId, fecha, glosa,
+    rucCliente, razonCliente, tipoUbicCliente, rucClienteObs, tipoUbicClienteObs,
+    dniProveedor, nombreProveedor, dirProveedor,
+    tipoUbicEmpresa, dirEmpresaCompleta, dirEmpLineTrim, tipoUbicEmpresaObs, dirEmpresaObs, dirEmpresaVacia,
+    descripcion, cantidad, unidadMedida, unidadMedidaObs,
+    valorUnitario, valorUnitarioObs,
+    lceAplicada, aplicacion,
+    valorCompra, totalNeto, valorVenta,
+    igv, igvObs, glosaObs,
+    dictamen
+  };
+}
+
+// ─── ANÁLISIS PRINCIPAL ───────────────────────────────────────────────────────
+async function analyze() {
+  if (!xmlFiles.length) return;
+  results = [];
+  errorCount = 0;
+
+  $('progress-wrap').style.display = '';
+  $('btn-analyze').disabled = true;
+  $('btn-export').disabled  = true;
+  $('btn-exportpdf').disabled  = true;
+
+  $('console').innerHTML = '<span class="line-info">Iniciando an&aacute;lisis...</span><br/>';
+  setProgress(0, xmlFiles.length);
+
+  for (let i = 0; i < xmlFiles.length; i++) {
+    const file = xmlFiles[i];
+    try {
+      const buffer = await file.arrayBuffer();
+
+      const snippet = new TextDecoder('utf-8').decode(buffer.slice(0, 200));
+      const encMatch = snippet.match(/encoding=['"]([^'"]+)['"]/i);
+      let encoding = 'utf-8';
+      if (encMatch) {
+        const detected = encMatch[1].toLowerCase();
+        if (detected.includes('iso-8859') || detected.includes('windows')) {
+          encoding = 'iso-8859-1';
+        }
+      }
+
+      let text;
+      try {
+        text = new TextDecoder(encoding).decode(buffer);
+      } catch (err) {
+        text = new TextDecoder('utf-8').decode(buffer);
+      }
+
+      text = sanitizeXML(text);
+
+      results.push(parseXML(text, file.name));
+      log(`✓ ${file.name}`, 'ok');
+    } catch (e) {
+      errorCount++;
+      log(`✗ ${file.name}: ${e.message}`, 'err');
+    }
+    setProgress(i + 1, xmlFiles.length);
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  updateStats();
+  buildReport();
+  $('btn-analyze').disabled = false;
+  $('btn-export').disabled  = false;
+  $('btn-exportpdf').disabled  = false;
+
+  log(`\nListo. ${results.length} documentos procesados.`, 'done');
+}
+
+// ─── ESTADÍSTICAS DEL SIDEBAR ─────────────────────────────────────────────────
+function updateStats() {
+  const obs = results.filter(r => r.dictamen.includes('OBSERVADO')).length;
+  const kgm = results.filter(r => r.unidadMedidaObs).length;
+
+  $('s-total').textContent = results.length;
+  $('s-ok').textContent    = results.length - obs;
+  $('s-obs').textContent   = obs;
+  $('s-kgm').textContent   = kgm;
+  $('s-err').textContent   = errorCount;
+}
+
+// ─── CONSTRUCCIÓN DEL REPORTE (única vista, horizontal) ───────────────────────
+function buildReport() {
+  $('empty').style.display      = 'none';
+  $('report-area').style.display = 'flex';
+  $('report-area').innerHTML     = buildSummary();
+
+  setTimeout(() => { initSummaryFilter(); }, 100);
+}
+
+function initSummaryFilter() {
+  const searchInput = document.getElementById('summary-search');
+  if (!searchInput) return;
+  searchInput.addEventListener('input', () => {
+    const term = searchInput.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#summary-table tbody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(term) ? '' : 'none';
+    });
+  });
+}
+
+// ─── TABLA RESUMEN (REPORTE) ───────────────────────────────────────────────────
+function buildSummary() {
+  const rows = results.map((r, i) => {
+    const obs = r.dictamen.includes('OBSERVADO');
+    return `<tr class="${obs ? 'row-obs' : 'row-ok'}">
+      <td>${i + 1}</td>
+      <td>${esc(r.fecha) || '—'}</td>
+      <td><span class="badge badge-lc">${esc(r.docId) || '—'}</span></td>
+      <td>${esc(r.dniProveedor) || '—'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.nombreProveedor)}">${esc(r.nombreProveedor) || '—'}</td>
+      <td style="${r.tipoUbicClienteObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${esc(r.tipoUbicCliente) || '—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.dirProveedor)}">${esc(r.dirProveedor) || '—'}</td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;${r.glosaObs ? 'color:var(--warn);font-weight:700' : ''}" title="${esc(r.glosa)}">${esc(r.glosa) || '—'}</td>
+      <td style="${r.tipoUbicEmpresaObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${esc(r.tipoUbicEmpresa) || '—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;${(r.dirEmpresaObs || r.dirEmpresaVacia) ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}" title="${esc(r.dirEmpresaCompleta)}">${esc(r.dirEmpresaCompleta) || '—'}</td>
+      <td style="text-align:right">${r.cantidad ? fmt(r.cantidad) : '—'}</td>
+      <td style="text-align:right;${r.valorUnitarioObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${r.valorUnitario ? fmt(r.valorUnitario) : '—'}</td>
+      <td style="text-align:right">${r.totalNeto ? fmt(r.totalNeto) : '—'}</td>
+      <td style="${r.lceAplicada ? 'font-weight:bold;font-size: 1.3em':''}">${r.lceAplicada ? r.lceAplicada : '—'}</td>
+      <td style="${r.aplicacion ? 'font-weight:bold;font-size: 1.3em':''}">${r.aplicacion ? fmt(r.aplicacion) : '—'}</td>
+      <td style="text-align:right">${r.valorCompra ? fmt(r.valorCompra) : '—'}</td>
+      <td style="text-align:right;${r.igvObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${fmt(r.igv)}</td>
+      <td style="text-align:right">${r.valorVenta ? fmt(r.valorVenta) : '—'}</td>
+      <td style="${r.unidadMedidaObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${esc(r.unidadMedida) || '—'}</td>
+      <td>${obs
+        ? '<span style="color:var(--warn);font-weight:700">' + esc(r.dictamen) + '</span>'
+        : '<span style="color:var(--ok);font-weight:700">' + esc(r.dictamen) + '</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="summary-table-wrap">
+      <div style="padding: 12px 20px 8px; background: var(--surface); border-bottom: 1px solid var(--border);">
+        <input type="text" id="summary-search"
+               placeholder="🔍 Buscar por documento, DNI, proveedor, direcci&oacute;n o dictamen..."
+               style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:0.6rem;">
+      </div>
+      <table class="summary-table" id="summary-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)" style="cursor:pointer">#</th>
+            <th onclick="sortTable(1)" style="cursor:pointer">Fecha</th>
+            <th onclick="sortTable(2)" style="cursor:pointer">Documento</th>
+            <th onclick="sortTable(3)" style="cursor:pointer">DNI</th>
+            <th onclick="sortTable(4)" style="cursor:pointer">Nombre Proveedor</th>
+            <th onclick="sortTable(5)" style="cursor:pointer">T.U. Prov.</th>
+            <th onclick="sortTable(6)" style="cursor:pointer">Direcci&oacute;n Proveedor</th>
+            <th onclick="sortTable(7)" style="cursor:pointer">Glosa</th>
+            <th onclick="sortTable(8)" style="cursor:pointer">T.U. Emp</th>
+            <th onclick="sortTable(9)" style="cursor:pointer">Direcci&oacute;n Empresa</th>
+            <th onclick="sortTable(10)" style="cursor:pointer;text-align:right">Cantidad</th>
+            <th onclick="sortTable(11)" style="cursor:pointer;text-align:right">Valor Unit.</th>
+            <th onclick="sortTable(12)" style="cursor:pointer;text-align:right">Importe Total Neto</th>
+            <th onclick="sortTable(13)" style="cursor:pointer">LCE Aplicada</th>
+            <th onclick="sortTable(14)" style="cursor:pointer;text-align:right">Aplicaci&oacute;n</th>
+            <th onclick="sortTable(15)" style="cursor:pointer;text-align:right">Valor Compra</th>
+            <th onclick="sortTable(16)" style="cursor:pointer;text-align:right">IGV</th>
+            <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">Valor Venta</th>
+            <th onclick="sortTable(18)" style="cursor:pointer">U.M.</th>
+            <th onclick="sortTable(29)" style="cursor:pointer">Dictamen</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    <div class="summary-pdf-bar">
+      <button class="btn-pdf" onclick="exportPdfSummary()" title="Exportar reporte a PDF (hoja horizontal)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        Exportar PDF
+      </button>
+    </div>
+
+    <div class="summary-footer">
+      Reporte de Liquidaciones de Compra &mdash; ${results.length} documento(s)
+    </div>`;
+}
+
+// ─── EXPORTACIÓN A EXCEL ──────────────────────────────────────────────────────
+async function exportExcel() {
+  if (!results.length) return;
+
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet('REPORTE LC');
+
+  const headers = [
+    'FECHA','DOCUMENTO','DNI PROVEEDOR','NOMBRE PROVEEDOR',
+    'TIPO UBICACION CLIENTE','DIRECCION PROVEEDOR','GLOSA',
+    'TIPO UBICACION EMPRESA','DIRECCION EMPRESA',
+    'CANTIDAD','VALOR UNITARIO','IMPORTE TOTAL NETO',
+    'LCE APLICADA','APLICACION','VALOR COMPRA','IGV','VALOR VENTA',
+    'UNIDAD MEDIDA','DICTAMEN'
+  ];
+
+  const headerRow = ws.addRow(headers);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } };
+
+  results.forEach(r => {
+    const row = ws.addRow([
+      r.fecha, r.docId, r.dniProveedor, r.nombreProveedor,
+      r.tipoUbicCliente, r.dirProveedor, r.glosa,
+      r.tipoUbicEmpresa, r.dirEmpresaCompleta,
+      r.cantidad, r.valorUnitario, r.totalNeto,
+      r.lceAplicada, r.aplicacion, r.valorCompra, r.igv, r.valorVenta,
+      r.unidadMedida, r.dictamen
+    ]);
+
+    const isObserved = r.dictamen.includes('OBSERVADO');
+
+    row.eachCell({ includeEmpty: true }, cell => {
+      cell.border = {
+        top:    { style: 'thin' },
+        left:   { style: 'thin' },
+        bottom: { style: 'thin' },
+        right:  { style: 'thin' }
+      };
+      if (isObserved) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+        cell.font = { color: { argb: 'B91C1C' } };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DCFCE7' } };
+        cell.font = { color: { argb: '166534' } };
+      }
+    });
+
+    // Resaltado adicional por campo específico observado (igual criterio que el Python),
+    // sobreescribiendo el color de fondo de la celda puntual que falló.
+    const cellTipoUbicCliente = row.getCell(6);
+    if (r.tipoUbicClienteObs) {
+      cellTipoUbicCliente.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellTipoUbicEmpresa = row.getCell(9);
+    if (r.tipoUbicEmpresaObs) {
+      cellTipoUbicEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellDirEmpresa = row.getCell(10);
+    if (r.dirEmpresaObs || r.dirEmpresaVacia) {
+      cellDirEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellValorUnit = row.getCell(12);
+    if (r.valorUnitarioObs) {
+      cellValorUnit.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellIgv = row.getCell(17);
+    if (r.igvObs) {
+      cellIgv.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellUnidad = row.getCell(19);
+    if (r.unidadMedidaObs) {
+      cellUnidad.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+    const cellGlosa = row.getCell(8);
+    if (r.glosaObs) {
+      cellGlosa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
+    }
+  });
+
+  ws.columns.forEach(col => col.width = 20);
+  ws.getColumn(5).width = 32;
+  ws.getColumn(7).width = 36;
+  ws.getColumn(8).width = 30;
+  ws.getColumn(10).width = 36;
+  ws.getColumn(20).width = 60;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'REPORTE_LIQUIDACIONES_COMPRA.xlsx';
+  link.click();
+
+  log('✅ Excel exportado con bordes y colores de observaci&oacute;n.', 'done');
+}
+
+// ─── LIMPIAR / REINICIAR ──────────────────────────────────────────────────────
+function clearAll() {
+  xmlFiles = []; results = [];
+  $('file-input').value = '';
+  $('file-count').textContent = '';
+  $('report-area').innerHTML = '';
+  $('report-area').style.display = 'none';
+  $('empty').style.display = 'flex';
+  $('progress-wrap').style.display = 'none';
+  $('progress-bar').style.width = '0%';
+  $('btn-analyze').disabled = true;
+  $('btn-export').disabled  = true;
+  $('btn-exportpdf').disabled  = true;
+  ['s-total','s-ok','s-obs','s-kgm','s-err'].forEach(id => $(id).textContent = '0');
+  $('console').innerHTML = '<span class="line-info">Sistema listo.</span><br/>';
+}
+
+// ─── EXPORTACIÓN A PDF ────────────────────────────────────────────────────────
+const pdfIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+function nowStr() {
+  const d = new Date();
+  return d.toLocaleDateString('es-PE') + ' ' + d.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'});
+}
+
+/**
+ * exportPdfSummary
+ * Genera el PDF del reporte en orientación HORIZONTAL (landscape).
+ * Es la única vista del aplicativo, por lo que es también la única exportación a PDF.
+ */
+function exportPdfSummary() {
+  if (!results.length) return;
+
+  const headers = [
+    '#','Fecha','Documento','DNI','Nombre Proveedor',
+    'T.Ubic.Cli','Direcci&oacute;n Proveedor','Glosa',
+    'T.Ubic.Emp','Direcci&oacute;n Empresa',
+    'Cantidad','V.Unit.','Total Neto',
+    'LCE Aplicada','Aplicaci&oacute;n','Valor Compra','IGV','Valor Venta',
+    'U.Med','Dictamen'
+  ];
+
+  const rows = results.map((r, i) => {
+    const obs = r.dictamen.includes('OBSERVADO');
+    const cls = obs ? 'pdf-row-obs' : 'pdf-row-ok';
+    const cells = [
+      i + 1,
+      r.fecha || '—',
+      r.docId || '—',
+      r.dniProveedor || '—',
+      (r.nombreProveedor || '—').substring(0, 28),
+      r.tipoUbicCliente || '—',
+      (r.dirProveedor || '—').substring(0, 32),
+      (r.glosa || '—').substring(0, 28),
+      r.tipoUbicEmpresa || '—',
+      (r.dirEmpresaCompleta || '—').substring(0, 32),
+      r.cantidad ? fmt(r.cantidad) : '—',
+      r.valorUnitario ? fmt(r.valorUnitario) : '—',
+      r.totalNeto ? fmt(r.totalNeto) : '—',
+      r.lceAplicada || '—',
+      r.aplicacion ? fmt(r.aplicacion) : '—',
+      r.valorCompra ? fmt(r.valorCompra) : '—',
+      fmt(r.igv),
+      r.valorVenta ? fmt(r.valorVenta) : '—',
+      r.unidadMedida || '—',
+      obs
+        ? (r.dictamen.replace('OBSERVADO: ', '').substring(0, 50) + (r.dictamen.length > 60 ? '...' : ''))
+        : 'OK'
+    ].map(c => `<td>${c}</td>`).join('');
+    return `<tr class="${cls}">${cells}</tr>`;
+  }).join('');
+
+  const html = `
+    <style>
+      @page { size: A4 landscape; margin: 8mm; }
+    </style>
+    <div class="pdf-header">
+      <div>
+        ${pdfIcon}
+        <h2 style="display:inline;vertical-align:middle">ANALIZADOR XML &mdash; LIQUIDACIONES DE COMPRA</h2>
+        <p>Comercio Amazon&iacute;a</p>
+      </div>
+      <div class="pdf-meta">
+        <div><strong>Fecha de exportaci&oacute;n:</strong> ${nowStr()}</div>
+        <div><strong>Total documentos:</strong> ${results.length}</div>
+        <div><strong>Observados:</strong> ${results.filter(r => r.dictamen.includes('OBSERVADO')).length}</div>
+      </div>
+    </div>
+    <table class="pdf-summary-table">
+      <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="pdf-footer-note">
+      Generado por Analizador XML &bull; ${nowStr()} &bull; ${results.length} registro(s)
+    </div>`;
+
+  const area = $('pdf-print-area');
+  area.className = 'landscape';
+  area.innerHTML = html;
+  window.print();
+}
+
+// ─── PREFERENCIAS DE USUARIO (TEMA + FUENTE) ─────────────────────────────────
+function applyFontScale(pct, save = true) {
+  pct = Number(pct);
+  const px = (14 * pct / 100).toFixed(2);
+  document.documentElement.style.setProperty('--fs', px + 'px');
+  $('font-pct').textContent = pct + '%';
+  $('font-slider').value = pct;
+  if (save) localStorage.setItem('lc_fontPct', pct);
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('theme-light');
+  updateThemeBtn(isLight);
+  localStorage.setItem('lc_theme', isLight ? 'light' : 'dark');
+}
+
+function updateThemeBtn(isLight) {
+  $('theme-icon').textContent  = isLight ? '🌙' : '🔆';
+  $('theme-label').textContent = isLight ? 'OSCURO' : 'CLARO';
+}
+
+function initPreferences() {
+  const savedTheme = localStorage.getItem('lc_theme') || 'light';
+  if (savedTheme === 'light') {
+    document.documentElement.classList.add('theme-light');
+    updateThemeBtn(true);
+  } else {
+    updateThemeBtn(false);
+  }
+  const savedPct = parseInt(localStorage.getItem('lc_fontPct') || '100', 10);
+  applyFontScale(savedPct, false);
+}
+
+// ─── MANEJO DE ARCHIVOS ───────────────────────────────────────────────────────
+$('file-input').addEventListener('change', e => {
+  xmlFiles = Array.from(e.target.files).filter(f => f.name.toLowerCase().endsWith('.xml'));
+  $('file-count').textContent = xmlFiles.length ? `${xmlFiles.length} archivo(s) seleccionado(s)` : '';
+  $('btn-analyze').disabled = !xmlFiles.length;
+});
+const dz = $('dropzone');
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => {
+  xmlFiles = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.xml'));
+  $('file-count').textContent = xmlFiles.length ? `${xmlFiles.length} archivo(s) cargado(s)` : '';
+  $('btn-analyze').disabled = !xmlFiles.length;
+});
+
+/**
+ * Ordenamiento de columnas en la tabla del reporte
+ */
+function sortTable(colIndex) {
+  const table = document.getElementById('summary-table');
+  if (!table) return;
+
+  const tbody = table.querySelector('tbody');
+  let rows = Array.from(tbody.querySelectorAll('tr'));
+
+  const currentDir = table.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+  table.dataset.sortCol = colIndex;
+  table.dataset.sortDir = currentDir;
+
+  rows.sort((a, b) => {
+    let valA = a.cells[colIndex] ? a.cells[colIndex].textContent.trim() : '';
+    let valB = b.cells[colIndex] ? b.cells[colIndex].textContent.trim() : '';
+
+    const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
+    const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
+
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return currentDir === 'asc' ? numA - numB : numB - numA;
+    }
+    return currentDir === 'asc'
+      ? valA.localeCompare(valB, 'es', { sensitivity: 'base' })
+      : valB.localeCompare(valA, 'es', { sensitivity: 'base' });
+  });
+
+  rows.forEach(row => tbody.appendChild(row));
+
+  document.querySelectorAll('#summary-table th').forEach((th, i) => {
+    th.textContent = th.textContent.replace(/[▲▼]/g, '').trim();
+    if (i === colIndex) {
+      th.textContent += currentDir === 'asc' ? ' ▲' : ' ▼';
+    }
+  });
+}
+
+// ─── INICIALIZACIÓN ───────────────────────────────────────────────────────────
+initPreferences();
+</script>
+  <div id="pdf-print-area" style="display:none"></div>
+</body>
+</html>

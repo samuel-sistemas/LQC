@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.17.1">
+<meta name="version" content="1.6.17.2">
 <meta name="revised" content="2026-06-17">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -410,6 +410,10 @@
         <div class="stat-card ok">  <div class="val" id="s-ok">0</div>   <div class="lbl">OK</div></div>
         <div class="stat-card err"> <div class="val" id="s-obs">0</div>  <div class="lbl">Observados</div></div>
         <div class="stat-card info"><div class="val" id="s-kgm">0</div>  <div class="lbl">Unid. ≠ KGM</div></div>
+        <div class="stat-card info"><div class="val" id="s-igv">0</div>  <div class="lbl">IGV > 0</div></div>
+        <div class="stat-card info"><div class="val" id="s-dir">0</div>  <div class="lbl">Direcci&oacute;n fuera de la Empresa</div></div>
+        <div class="stat-card info"><div class="val" id="s-pre">0</div>  <div class="lbl">Precio Unitario > 20</div></div>
+        <div class="stat-card info"><div class="val" id="s-tipo">0</div>  <div class="lbl">Tipo Err&oacute;neo</div></div>                
         <div class="stat-card fatal"><div class="val" id="s-err">0</div>  <div class="lbl">Err&oacute;neos (No le&iacute;dos)</div></div>
       </div>
       <div id="progress-wrap">
@@ -834,11 +838,20 @@ async function analyze() {
 function updateStats() {
   const obs = results.filter(r => r.dictamen.includes('OBSERVADO')).length;
   const kgm = results.filter(r => r.unidadMedidaObs).length;
+  const igv0 = results.filter(r => r.igvObs).length;
+  const dir = results.filter(r => r.dirEmpresaObs).length;
+  const pre = results.filter(r => r.valorUnitarioObs).length;
+  const tipo = results.filter(r => r.tipoUbicClienteObs || r.tipoUbicEmpresaObs).length;
+  
 
   $('s-total').textContent = results.length;
   $('s-ok').textContent    = results.length - obs;
   $('s-obs').textContent   = obs;
   $('s-kgm').textContent   = kgm;
+  $('s-igv').textContent   = igv0;
+  $('s-dir').textContent   = dir;
+  $('s-pre').textContent   = pre;  
+  $('s-tipo').textContent  = tipo;
   $('s-err').textContent   = errorCount;
 }
 
@@ -1055,7 +1068,7 @@ function clearAll() {
   $('btn-analyze').disabled = true;
   $('btn-export').disabled  = true;
   $('btn-exportpdf').disabled  = true;
-  ['s-total','s-ok','s-obs','s-kgm','s-err'].forEach(id => $(id).textContent = '0');
+  ['s-total','s-ok','s-obs','s-kgm','s-igv','s-dir','s-tipo','s-err'].forEach(id => $(id).textContent = '0');
   $('console').innerHTML = '<span class="line-info">Sistema listo.</span><br/>';
 }
 

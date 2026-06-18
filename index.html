@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.17.2">
-<meta name="revised" content="2026-06-17">
+<meta name="version" content="1.6.18.1">
+<meta name="revised" content="2026-06-18">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
@@ -25,13 +24,6 @@
     color: white;
   }
   .summary-table th.sorted-asc::after,
-  .summary-table th.sorted-desc::after {
-    content: ' ▲';
-    font-size: 0.7em;
-    position: absolute;
-    right: 8px;
-  }
-  .summary-table th.sorted-desc::after { content: ' ▼'; }
 
   /* ── TEMA OSCURO (predeterminado) ────────────────────────────────────────── */
   :root {
@@ -161,7 +153,25 @@
     gap: 18px;
     overflow-x: auto; overflow-y: visible;
     max-height: 38vh;
+    position: relative;
+    transition: max-height .3s cubic-bezier(.4,0,.2,1), padding .3s;
   }
+  aside.collapsed {
+    max-height: 30px !important;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    overflow: hidden !important;
+  }
+  .aside-toggle {
+    position: absolute; top: 7px; right: 12px; z-index: 10;
+    display: flex; align-items: center; gap: 5px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 7px; padding: 4px 10px;
+    cursor: pointer; user-select: none; white-space: nowrap;
+    font-family: var(--mono); font-size: .65rem; color: var(--muted);
+    transition: all .2s;
+  }
+  .aside-toggle:hover { border-color: var(--accent); color: var(--text); }
   .panel-block {
     display: flex; flex-direction: column; gap: 8px;
     min-width: 0;
@@ -194,7 +204,6 @@
   .stat-card.info .val { color: var(--accent2); }
   .stat-card.total .val { color: var(--accent); }
   .stat-card.fatal {
-    
     border-color: rgba(239,68,68,.3);
     background: rgba(239,68,68,.05);
   }
@@ -212,6 +221,9 @@
   .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
   .btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; }
   .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-excel { background: linear-gradient(135deg, #217346, #1a5c37); color: #fff; border: none; }
+  .btn-excel:hover { opacity: .88; transform: translateY(-1px); }
+  .btn-excel:disabled { opacity: .35; cursor: not-allowed; transform: none; }
   .btn-outline:hover { border-color: var(--accent); color: var(--text); }
   .btn-outline:disabled { opacity: .3; cursor: not-allowed; }
 
@@ -220,7 +232,7 @@
     background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
     padding: 10px; overflow-y: auto; font-family: var(--mono);
     font-size: .65rem; line-height: 1.6; color: var(--muted);
-    min-height: 150px; max-height: 110px;
+    min-height: 110px; max-height: 150px;
   }
   #console .line-ok   { color: var(--ok); }
   #console .line-err  { color: var(--warn); }
@@ -377,7 +389,8 @@
 <div class="app">
 
   <!-- PANEL DE CONTROL (horizontal, parte superior) -->
-  <aside>
+  <aside id="aside-panel">
+    <button class="aside-toggle" id="aside-toggle" onclick="toggleAside()" title="Comprimir panel">▲ CONTRAER PANEL</button>
     <div class="panel-block">
       <p class="section-label">Cargar XMLs</p>
       <div class="dropzone" id="dropzone">
@@ -393,7 +406,7 @@
       <p class="section-label">Acciones</p>
       <div class="actions-row">
         <button class="btn btn-primary" id="btn-analyze" disabled onclick="analyze()">▶ ANALIZAR</button>
-        <button class="btn btn-outline" id="btn-export"  disabled onclick="exportExcel()">&#8595; Excel</button>
+        <button class="btn btn-excel" id="btn-export"  disabled onclick="exportExcel()">&#8595; EXCEL</button>
         <button class="btn btn-outline" onclick="clearAll()">✕ Limpiar</button>
         <button class="btn-pdf" id="btn-exportpdf"  disabled onclick="exportPdfSummary()" title="Exportar reporte a PDF (hoja horizontal)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -511,8 +524,9 @@ function setProgress(done, total) {
 
 function esc(s) {
   if (!s) return '';
-  const doc = new DOMParser().parseFromString(s, 'text/html');
-  return doc.documentElement.textContent;
+  const t = document.createElement('span');
+  t.textContent = s;
+  return t.innerHTML;
 }
 
 function fmt(n) { return (n === null || n === undefined || n === '') ? '0.00' : Number(n).toFixed(2); }
@@ -761,6 +775,7 @@ function parseXML(xmlText, filename) {
   }
 
   const dictamen = obsArr.length ? 'OBSERVADO: ' + obsArr.join(' | ') : 'OK';
+  const isObserved = obsArr.length > 0;
 
   return {
     file: filename,
@@ -772,7 +787,7 @@ function parseXML(xmlText, filename) {
     valorUnitario, valorUnitarioObs,
     lceAplicada, aplicacion,
     valorCompra, totalNeto, valorVenta,
-    igv, igvObs, glosaObs,
+    igv, igvObs, glosaObs, isObserved,
     dictamen
   };
 }
@@ -822,7 +837,7 @@ async function analyze() {
       log(`✗ ${file.name}: ${e.message}`, 'err');
     }
     setProgress(i + 1, xmlFiles.length);
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    if (i > 0 && i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
   updateStats();
@@ -836,7 +851,7 @@ async function analyze() {
 
 // ─── ESTADÍSTICAS DEL SIDEBAR ─────────────────────────────────────────────────
 function updateStats() {
-  const obs = results.filter(r => r.dictamen.includes('OBSERVADO')).length;
+  const obs = results.filter(r => r.isObserved).length;
   const kgm = results.filter(r => r.unidadMedidaObs).length;
   const igv0 = results.filter(r => r.igvObs).length;
   const dir = results.filter(r => r.dirEmpresaObs).length;
@@ -861,7 +876,7 @@ function buildReport() {
   $('report-area').style.display = 'flex';
   $('report-area').innerHTML     = buildSummary();
 
-  setTimeout(() => { initSummaryFilter(); }, 100);
+  requestAnimationFrame(() => { initSummaryFilter(); });
 }
 
 function initSummaryFilter() {
@@ -880,7 +895,7 @@ function initSummaryFilter() {
 // ─── TABLA RESUMEN (REPORTE) ───────────────────────────────────────────────────
 function buildSummary() {
   const rows = results.map((r, i) => {
-    const obs = r.dictamen.includes('OBSERVADO');
+    const obs = r.isObserved;
     return `<tr class="${obs ? 'row-obs' : 'row-ok'}">
       <td>${i + 1}</td>
       <td>${esc(r.fecha) || '—'}</td>
@@ -894,7 +909,7 @@ function buildSummary() {
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;${(r.dirEmpresaObs || r.dirEmpresaVacia) ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}" title="${esc(r.dirEmpresaCompleta)}">${esc(r.dirEmpresaCompleta) || '—'}</td>
       <td style="text-align:right">${r.cantidad ? fmt(r.cantidad) : '—'}</td>
       <td style="text-align:right;${r.valorUnitarioObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${r.valorUnitario ? fmt(r.valorUnitario) : '—'}</td>
-      <td style="text-align:right">${r.totalNeto ? fmt(r.totalNeto) : '—'}</td>
+      <td style="text-align:right;font-weight:bold;font-size: 1.3em">${r.totalNeto ? fmt(r.totalNeto) : '—'}</td>
       <td style="${r.lceAplicada ? 'font-weight:bold;font-size: 1.3em':''}">${r.lceAplicada ? r.lceAplicada : '—'}</td>
       <td style="${r.aplicacion ? 'font-weight:bold;font-size: 1.3em':''}">${r.aplicacion ? fmt(r.aplicacion) : '—'}</td>
       <td style="text-align:right">${r.valorCompra ? fmt(r.valorCompra) : '—'}</td>
@@ -936,7 +951,7 @@ function buildSummary() {
             <th onclick="sortTable(16)" style="cursor:pointer;text-align:right">IGV</th>
             <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">Valor Venta</th>
             <th onclick="sortTable(18)" style="cursor:pointer">U.M.</th>
-            <th onclick="sortTable(29)" style="cursor:pointer">Dictamen</th>
+            <th onclick="sortTable(19)" style="cursor:pointer">Dictamen</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -988,7 +1003,7 @@ async function exportExcel() {
       r.unidadMedida, r.dictamen
     ]);
 
-    const isObserved = r.dictamen.includes('OBSERVADO');
+    const isObserved = r.isObserved;
 
     row.eachCell({ includeEmpty: true }, cell => {
       cell.border = {
@@ -998,10 +1013,10 @@ async function exportExcel() {
         right:  { style: 'thin' }
       };
       if (isObserved) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5' } }; //ROSADO el FFC7CE es ROSADO MAS INTENSO
         cell.font = { color: { argb: 'B91C1C' } };
       } else {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DCFCE7' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DCFCE7' } }; //VERDE PALIDO
         cell.font = { color: { argb: '166534' } };
       }
     });
@@ -1052,12 +1067,12 @@ async function exportExcel() {
   link.download = 'REPORTE_LIQUIDACIONES_COMPRA.xlsx';
   link.click();
 
-  log('✅ Excel exportado con bordes y colores de observaci&oacute;n.', 'done');
+  log('✅ Excel exportado con bordes y colores de observación.', 'done');
 }
 
 // ─── LIMPIAR / REINICIAR ──────────────────────────────────────────────────────
 function clearAll() {
-  xmlFiles = []; results = [];
+  xmlFiles = []; results = [];errorCount = 0;
   $('file-input').value = '';
   $('file-count').textContent = '';
   $('report-area').innerHTML = '';
@@ -1068,7 +1083,7 @@ function clearAll() {
   $('btn-analyze').disabled = true;
   $('btn-export').disabled  = true;
   $('btn-exportpdf').disabled  = true;
-  ['s-total','s-ok','s-obs','s-kgm','s-igv','s-dir','s-tipo','s-err'].forEach(id => $(id).textContent = '0');
+  ['s-total','s-ok','s-obs','s-kgm','s-igv','s-dir','s-pre','s-tipo','s-err'].forEach(id => $(id).textContent = '0');
   $('console').innerHTML = '<span class="line-info">Sistema listo.</span><br/>';
 }
 
@@ -1098,7 +1113,7 @@ function exportPdfSummary() {
   ];
 
   const rows = results.map((r, i) => {
-    const obs = r.dictamen.includes('OBSERVADO');
+    const obs = r.isObserved;
     const cls = obs ? 'pdf-row-obs' : 'pdf-row-ok';
     const cells = [
       i + 1,
@@ -1126,7 +1141,8 @@ function exportPdfSummary() {
     ].map(c => `<td>${c}</td>`).join('');
     return `<tr class="${cls}">${cells}</tr>`;
   }).join('');
-
+  
+  const ts = nowStr();
   const html = `
     <style>
       @page { size: A4 landscape; margin: 8mm; }
@@ -1138,9 +1154,9 @@ function exportPdfSummary() {
         <p>Comercio Amazon&iacute;a</p>
       </div>
       <div class="pdf-meta">
-        <div><strong>Fecha de exportaci&oacute;n:</strong> ${nowStr()}</div>
+        <div><strong>Fecha de exportaci&oacute;n:</strong> ${ts}</div>
         <div><strong>Total documentos:</strong> ${results.length}</div>
-        <div><strong>Observados:</strong> ${results.filter(r => r.dictamen.includes('OBSERVADO')).length}</div>
+        <div><strong>Observados:</strong> ${results.filter(r => r.isObserved).length}</div>
       </div>
     </div>
     <table class="pdf-summary-table">
@@ -1148,7 +1164,7 @@ function exportPdfSummary() {
       <tbody>${rows}</tbody>
     </table>
     <div class="pdf-footer-note">
-      Generado por Analizador XML &bull; ${nowStr()} &bull; ${results.length} registro(s)
+      Generado por Analizador XML &bull; ${ts} &bull; ${results.length} registro(s)
     </div>`;
 
   const area = $('pdf-print-area');
@@ -1165,6 +1181,15 @@ function applyFontScale(pct, save = true) {
   $('font-pct').textContent = pct + '%';
   $('font-slider').value = pct;
   if (save) localStorage.setItem('lc_fontPct', pct);
+}
+
+function toggleAside() {
+  const aside = $('aside-panel');
+  const btn   = $('aside-toggle');
+  const collapsed = aside.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '▼ EXPANDIR PANEL' : '▲ CONTRAER PANEL';
+  btn.title       = collapsed ? 'Expandir panel' : 'Comprimir panel';
+  localStorage.setItem('lc_aside_collapsed', collapsed);
 }
 
 function toggleTheme() {
@@ -1188,6 +1213,12 @@ function initPreferences() {
   }
   const savedPct = parseInt(localStorage.getItem('lc_fontPct') || '100', 10);
   applyFontScale(savedPct, false);
+
+  if (localStorage.getItem('lc_aside_collapsed') === 'true') {
+    $('aside-panel').classList.add('collapsed');
+    $('aside-toggle').textContent = '▼ EXPANDIR PANEL';
+    $('aside-toggle').title = 'Expandir panel';
+  }
 }
 
 // ─── MANEJO DE ARCHIVOS ───────────────────────────────────────────────────────

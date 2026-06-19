@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.19.1">
+<meta name="version" content="1.6.19.2">
 <meta name="revised" content="2026-06-19">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -530,7 +530,10 @@ function esc(s) {
   return t.innerHTML;
 }
 
-function fmt(n) { return (n === null || n === undefined || n === '') ? '0.00' : Number(n).toFixed(2); }
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '0.00';
+  return Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 // ─── HELPERS NAVEGACIÓN XML ───────────────────────────────────────────────────
 function findAllByLocal(root, localName) {
@@ -692,8 +695,12 @@ function parseXML(xmlText, filename) {
     ? parseFloat(findAllByLocal(primeraLinea, 'PriceAmount')[0]?.textContent?.trim() || '0')
     : 0;
 
-  // ── REFERENCIA LCE (AdditionalDocumentReference) ────────────────────────────
-  const lceAplicada = xText(root, 'cac:AdditionalDocumentReference/cbc:ID');
+  // ── REFERENCIA LCE (AdditionalDocumentReference) — puede haber múltiples ────
+  const lceAplicada = findAllByLocal(root, 'AdditionalDocumentReference')
+    .filter(ref => findAllByLocal(ref, 'DocumentTypeCode')[0]?.textContent?.trim() === '10')
+    .map(ref => findAllByLocal(ref, 'ID')[0]?.textContent?.trim())
+    .filter(Boolean)
+    .join(', ');
 
   // ── MONTOS PRINCIPALES ───────────────────────────────────────────────────────
   const valorCompra = parseFloat(xText(root, 'cac:LegalMonetaryTotal/cbc:LineExtensionAmount', '0')) || 0;
@@ -1052,6 +1059,11 @@ async function exportExcel() {
     if (r.glosaObs) {
       cellGlosa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
+
+    // Formato numérico con separador de miles en columnas monetarias/cantidad
+    [10, 11, 12, 14, 15, 16, 17].forEach(col => {
+      row.getCell(col).numFmt = '#,##0.00';
+    });
   });
 
   ws.columns.forEach(col => col.width = 20);

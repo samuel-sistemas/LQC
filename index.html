@@ -5,8 +5,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.19.2">
-<meta name="revised" content="2026-06-19">
+<meta name="version" content="1.6.22.1">
+<meta name="revised" content="2026-06-22">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
@@ -686,6 +686,7 @@ function parseXML(xmlText, filename) {
   const primeraLinea = lineNodes[0] || null;
 
   const descripcion = primeraLinea ? (findAllByLocal(primeraLinea, 'Description')[0]?.textContent?.trim() || '') : '';
+  const tipo = descripcion.includes('***PAGO ANTICIPADO***') ? 'PAGO ANTICIPADO' : 'COMPRA DIRECTA';
   const cantidadNode = primeraLinea ? findAllByLocal(primeraLinea, 'InvoicedQuantity')[0] : null;
   const cantidad = cantidadNode ? parseFloat(cantidadNode.textContent?.trim() || '0') : 0;
   const unidadMedida = cantidadNode ? (cantidadNode.getAttribute('unitCode') || '') : '';
@@ -791,7 +792,7 @@ function parseXML(xmlText, filename) {
     rucCliente, razonCliente, tipoUbicCliente, rucClienteObs, tipoUbicClienteObs,
     dniProveedor, nombreProveedor, dirProveedor,
     tipoUbicEmpresa, dirEmpresaCompleta, dirEmpLineTrim, tipoUbicEmpresaObs, dirEmpresaObs, dirEmpresaVacia,
-    descripcion, cantidad, unidadMedida, unidadMedidaObs,
+    descripcion, tipo, cantidad, unidadMedida, unidadMedidaObs,
     valorUnitario, valorUnitarioObs,
     lceAplicada, aplicacion,
     valorCompra, totalNeto, valorVenta,
@@ -908,6 +909,7 @@ function buildSummary() {
       <td>${i + 1}</td>
       <td>${esc(r.fecha) || '—'}</td>
       <td><span class="badge badge-lc">${esc(r.docId) || '—'}</span></td>
+      <td>${esc(r.tipo)}</td>
       <td>${esc(r.dniProveedor) || '—'}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.nombreProveedor)}">${esc(r.nombreProveedor) || '—'}</td>
       <td style="${r.tipoUbicClienteObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${esc(r.tipoUbicCliente) || '—'}</td>
@@ -943,23 +945,24 @@ function buildSummary() {
             <th onclick="sortTable(0)" style="cursor:pointer">#</th>
             <th onclick="sortTable(1)" style="cursor:pointer">Fecha</th>
             <th onclick="sortTable(2)" style="cursor:pointer">Documento</th>
-            <th onclick="sortTable(3)" style="cursor:pointer">DNI</th>
-            <th onclick="sortTable(4)" style="cursor:pointer">Nombre Proveedor</th>
-            <th onclick="sortTable(5)" style="cursor:pointer">T.U. Prov.</th>
-            <th onclick="sortTable(6)" style="cursor:pointer">Direcci&oacute;n Proveedor</th>
-            <th onclick="sortTable(7)" style="cursor:pointer">Glosa</th>
-            <th onclick="sortTable(8)" style="cursor:pointer">T.U. Emp</th>
-            <th onclick="sortTable(9)" style="cursor:pointer">Direcci&oacute;n Empresa</th>
-            <th onclick="sortTable(10)" style="cursor:pointer;text-align:right">Cantidad</th>
-            <th onclick="sortTable(11)" style="cursor:pointer;text-align:right">Valor Unit.</th>
-            <th onclick="sortTable(12)" style="cursor:pointer;text-align:right">Importe Total Neto</th>
-            <th onclick="sortTable(13)" style="cursor:pointer">LCE Aplicada</th>
-            <th onclick="sortTable(14)" style="cursor:pointer;text-align:right">Aplicaci&oacute;n</th>
-            <th onclick="sortTable(15)" style="cursor:pointer;text-align:right">Valor Compra</th>
-            <th onclick="sortTable(16)" style="cursor:pointer;text-align:right">IGV</th>
-            <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">Valor Venta</th>
-            <th onclick="sortTable(18)" style="cursor:pointer">U.M.</th>
-            <th onclick="sortTable(19)" style="cursor:pointer">Dictamen</th>
+            <th onclick="sortTable(3)" style="cursor:pointer">Tipo</th>
+            <th onclick="sortTable(4)" style="cursor:pointer">DNI</th>
+            <th onclick="sortTable(5)" style="cursor:pointer">Nombre Proveedor</th>
+            <th onclick="sortTable(6)" style="cursor:pointer">T.U. Prov.</th>
+            <th onclick="sortTable(7)" style="cursor:pointer">Direcci&oacute;n Proveedor</th>
+            <th onclick="sortTable(8)" style="cursor:pointer">Glosa</th>
+            <th onclick="sortTable(9)" style="cursor:pointer">T.U. Emp</th>
+            <th onclick="sortTable(10)" style="cursor:pointer">Direcci&oacute;n Empresa</th>
+            <th onclick="sortTable(11)" style="cursor:pointer;text-align:right">Cantidad</th>
+            <th onclick="sortTable(12)" style="cursor:pointer;text-align:right">Valor Unit.</th>
+            <th onclick="sortTable(13)" style="cursor:pointer;text-align:right">Importe Total Neto</th>
+            <th onclick="sortTable(14)" style="cursor:pointer">LCE Aplicada</th>
+            <th onclick="sortTable(15)" style="cursor:pointer;text-align:right">Aplicaci&oacute;n</th>
+            <th onclick="sortTable(16)" style="cursor:pointer;text-align:right">Valor Compra</th>
+            <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">IGV</th>
+            <th onclick="sortTable(18)" style="cursor:pointer;text-align:right">Valor Venta</th>
+            <th onclick="sortTable(19)" style="cursor:pointer">U.M.</th>
+            <th onclick="sortTable(20)" style="cursor:pointer">Dictamen</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -989,7 +992,7 @@ async function exportExcel() {
   const ws = workbook.addWorksheet('REPORTE LC');
 
   const headers = [
-    'FECHA','DOCUMENTO','DNI PROVEEDOR','NOMBRE PROVEEDOR',
+    'FECHA','DOCUMENTO','TIPO','DNI PROVEEDOR','NOMBRE PROVEEDOR',
     'TIPO UBICACION CLIENTE','DIRECCION PROVEEDOR','GLOSA',
     'TIPO UBICACION EMPRESA','DIRECCION EMPRESA',
     'CANTIDAD','VALOR UNITARIO','IMPORTE TOTAL NETO',
@@ -1003,7 +1006,7 @@ async function exportExcel() {
 
   results.forEach(r => {
     const row = ws.addRow([
-      r.fecha, r.docId, r.dniProveedor, r.nombreProveedor,
+      r.fecha, r.docId, r.tipo, r.dniProveedor, r.nombreProveedor,
       r.tipoUbicCliente, r.dirProveedor, r.glosa,
       r.tipoUbicEmpresa, r.dirEmpresaCompleta,
       r.cantidad, r.valorUnitario, r.totalNeto,
@@ -1031,47 +1034,48 @@ async function exportExcel() {
 
     // Resaltado adicional por campo específico observado (igual criterio que el Python),
     // sobreescribiendo el color de fondo de la celda puntual que falló.
-    const cellTipoUbicCliente = row.getCell(6);
+    const cellTipoUbicCliente = row.getCell(7);
     if (r.tipoUbicClienteObs) {
       cellTipoUbicCliente.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellTipoUbicEmpresa = row.getCell(9);
+    const cellTipoUbicEmpresa = row.getCell(10);
     if (r.tipoUbicEmpresaObs) {
       cellTipoUbicEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellDirEmpresa = row.getCell(10);
+    const cellDirEmpresa = row.getCell(11);
     if (r.dirEmpresaObs || r.dirEmpresaVacia) {
       cellDirEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellValorUnit = row.getCell(12);
+    const cellValorUnit = row.getCell(13);
     if (r.valorUnitarioObs) {
       cellValorUnit.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellIgv = row.getCell(17);
+    const cellIgv = row.getCell(18);
     if (r.igvObs) {
       cellIgv.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellUnidad = row.getCell(19);
+    const cellUnidad = row.getCell(20);
     if (r.unidadMedidaObs) {
       cellUnidad.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellGlosa = row.getCell(8);
+    const cellGlosa = row.getCell(9);
     if (r.glosaObs) {
       cellGlosa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
 
     // Formato numérico con separador de miles en columnas monetarias/cantidad
-    [10, 11, 12, 14, 15, 16, 17].forEach(col => {
+    [11, 12, 13, 15, 16, 17, 18].forEach(col => {
       row.getCell(col).numFmt = '#,##0.00';
     });
   });
 
   ws.columns.forEach(col => col.width = 20);
-  ws.getColumn(5).width = 32;
-  ws.getColumn(7).width = 36;
-  ws.getColumn(8).width = 30;
-  ws.getColumn(10).width = 36;
-  ws.getColumn(20).width = 60;
+  ws.getColumn(3).width = 18;
+  ws.getColumn(6).width = 32;
+  ws.getColumn(8).width = 36;
+  ws.getColumn(9).width = 30;
+  ws.getColumn(11).width = 36;
+  ws.getColumn(21).width = 60;
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -1117,7 +1121,7 @@ function exportPdfSummary() {
   if (!results.length) return;
 
   const headers = [
-    '#','Fecha','Documento','DNI','Nombre Proveedor',
+    '#','Fecha','Documento','Tipo','DNI','Nombre Proveedor',
     'T.Ubic.Cli','Direcci&oacute;n Proveedor','Glosa',
     'T.Ubic.Emp','Direcci&oacute;n Empresa',
     'Cantidad','V.Unit.','Total Neto',
@@ -1132,6 +1136,7 @@ function exportPdfSummary() {
       i + 1,
       r.fecha || '—',
       r.docId || '—',
+      r.tipo || '—',
       r.dniProveedor || '—',
       (r.nombreProveedor || '—').substring(0, 28),
       r.tipoUbicCliente || '—',

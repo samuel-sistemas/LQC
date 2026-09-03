@@ -5,8 +5,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.9.3.1">
-<meta name="revised" content="2026-09-3">
+<meta name="version" content="1.9.3.2">
+<meta name="revised" content="2026-09-03">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
@@ -540,6 +540,42 @@ function fmt(n) {
   return Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// ─── REPARACIÓN DE TEXTO MAL CODIFICADO (MOJIBAKE) ───────────────────────────
+/**
+ * Algunos emisores generan el XML con texto UTF-8 cuyos bytes fueron
+ * reinterpretados como ISO-8859-1 (Latin-1) y vueltos a guardar como UTF-8,
+ * a veces dos veces seguidas. Esto produce secuencias como "CAFÃÂ NATURAL"
+ * en vez de "CAFÉ NATURAL" (con caracteres de control invisibles de por medio).
+ * fixMojibake revierte ese proceso: toma cada carácter del string como si
+ * fuera un byte Latin-1 y lo vuelve a decodificar como UTF-8, repitiendo
+ * mientras siga detectando el patrón corrupto (Ã/Â sueltos).
+ */
+function fixMojibakePass(str) {
+  const bytes = [];
+  for (const ch of str) {
+    const code = ch.codePointAt(0);
+    if (code > 0xFF) return null;
+    bytes.push(code);
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+  } catch (e) {
+    return null;
+  }
+}
+
+function fixMojibake(str) {
+  if (!str) return str;
+  let current = str;
+  for (let i = 0; i < 4; i++) {
+    if (!/[ÃÂ]/.test(current)) break;
+    const next = fixMojibakePass(current);
+    if (!next || next === current) break;
+    current = next;
+  }
+  return current;
+}
+
 // ─── HELPERS NAVEGACIÓN XML ───────────────────────────────────────────────────
 function findAllByLocal(root, localName) {
   if (!root) return [];
@@ -574,7 +610,7 @@ function xText(root, localPath, fallback = '') {
     nodes = next;
     if (!nodes.length) return fallback;
   }
-  return nodes[0]?.textContent?.trim() || fallback;
+  return fixMojibake(nodes[0]?.textContent?.trim()) || fallback;
 }
 
 function xAttr(root, localPath, attrName, fallback = '') {
@@ -690,8 +726,13 @@ function parseXML(xmlText, filename) {
   const lineNodes = findAllByLocal(root, 'InvoiceLine');
   const primeraLinea = lineNodes[0] || null;
 
-  const descripcion = primeraLinea ? (findAllByLocal(primeraLinea, 'Description')[0]?.textContent?.trim() || '') : '';
+  const descripcion = primeraLinea ? (fixMojibake(findAllByLocal(primeraLinea, 'Description')[0]?.textContent?.trim()) || '') : '';
   const tipo = descripcion.includes('***PAGO ANTICIPADO***') ? 'PAGO ANTICIPADO' : 'COMPRA DIRECTA';
+  const codigo = primeraLinea
+    ? (findAllByLocal(primeraLinea, 'SellersItemIdentification')[0]
+        ? findAllByLocal(findAllByLocal(primeraLinea, 'SellersItemIdentification')[0], 'ID')[0]?.textContent?.trim() || ''
+        : '')
+    : '';
   const cantidadNode = primeraLinea ? findAllByLocal(primeraLinea, 'InvoicedQuantity')[0] : null;
   const cantidad = cantidadNode ? parseFloat(cantidadNode.textContent?.trim() || '0') : 0;
   const unidadMedida = cantidadNode ? (cantidadNode.getAttribute('unitCode') || '') : '';
@@ -797,7 +838,7 @@ function parseXML(xmlText, filename) {
     rucCliente, razonCliente, tipoUbicCliente, rucClienteObs, tipoUbicClienteObs,
     dniProveedor, nombreProveedor, dirProveedor,
     tipoUbicEmpresa, dirEmpresaCompleta, dirEmpLineTrim, tipoUbicEmpresaObs, dirEmpresaObs, dirEmpresaVacia,
-    descripcion, tipo, cantidad, unidadMedida, unidadMedidaObs,
+    descripcion, codigo, tipo, cantidad, unidadMedida, unidadMedidaObs,
     valorUnitario, valorUnitarioObs,
     lceAplicada, aplicacion,
     valorCompra, totalNeto, valorVenta,
@@ -915,6 +956,8 @@ function buildSummary() {
       <td>${esc(r.fecha) || '—'}</td>
       <td><span class="badge badge-lc">${esc(r.docId) || '—'}</span></td>
       <td>${esc(r.tipo)}</td>
+      <td>${esc(r.codigo) || '—'}</td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.descripcion)}">${esc(r.descripcion) || '—'}</td>
       <td>${esc(r.dniProveedor) || '—'}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.nombreProveedor)}">${esc(r.nombreProveedor) || '—'}</td>
       <td style="${r.tipoUbicClienteObs ? 'color:var(--warn);font-weight:700;font-size: 1.3em' : ''}">${esc(r.tipoUbicCliente) || '—'}</td>
@@ -951,23 +994,25 @@ function buildSummary() {
             <th onclick="sortTable(1)" style="cursor:pointer">Fecha</th>
             <th onclick="sortTable(2)" style="cursor:pointer">Documento</th>
             <th onclick="sortTable(3)" style="cursor:pointer">Tipo</th>
-            <th onclick="sortTable(4)" style="cursor:pointer">DNI</th>
-            <th onclick="sortTable(5)" style="cursor:pointer">Nombre Proveedor</th>
-            <th onclick="sortTable(6)" style="cursor:pointer">T.U. Prov.</th>
-            <th onclick="sortTable(7)" style="cursor:pointer">Direcci&oacute;n Proveedor</th>
-            <th onclick="sortTable(8)" style="cursor:pointer">Glosa</th>
-            <th onclick="sortTable(9)" style="cursor:pointer">T.U. Emp</th>
-            <th onclick="sortTable(10)" style="cursor:pointer">Direcci&oacute;n Empresa</th>
-            <th onclick="sortTable(11)" style="cursor:pointer;text-align:right">Cantidad</th>
-            <th onclick="sortTable(12)" style="cursor:pointer;text-align:right">Valor Unit.</th>
-            <th onclick="sortTable(13)" style="cursor:pointer;text-align:right">Importe Total Neto</th>
-            <th onclick="sortTable(14)" style="cursor:pointer">LCE Aplicada</th>
-            <th onclick="sortTable(15)" style="cursor:pointer;text-align:right">Aplicaci&oacute;n</th>
-            <th onclick="sortTable(16)" style="cursor:pointer;text-align:right">Valor Compra</th>
-            <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">IGV</th>
-            <th onclick="sortTable(18)" style="cursor:pointer;text-align:right">Valor Venta</th>
-            <th onclick="sortTable(19)" style="cursor:pointer">U.M.</th>
-            <th onclick="sortTable(20)" style="cursor:pointer">Dictamen</th>
+            <th onclick="sortTable(4)" style="cursor:pointer">C&oacute;digo</th>
+            <th onclick="sortTable(5)" style="cursor:pointer">Producto</th>
+            <th onclick="sortTable(6)" style="cursor:pointer">DNI</th>
+            <th onclick="sortTable(7)" style="cursor:pointer">Nombre Proveedor</th>
+            <th onclick="sortTable(8)" style="cursor:pointer">T.U. Prov.</th>
+            <th onclick="sortTable(9)" style="cursor:pointer">Direcci&oacute;n Proveedor</th>
+            <th onclick="sortTable(10)" style="cursor:pointer">Glosa</th>
+            <th onclick="sortTable(11)" style="cursor:pointer">T.U. Emp</th>
+            <th onclick="sortTable(12)" style="cursor:pointer">Direcci&oacute;n Empresa</th>
+            <th onclick="sortTable(13)" style="cursor:pointer;text-align:right">Cantidad</th>
+            <th onclick="sortTable(14)" style="cursor:pointer;text-align:right">Valor Unit.</th>
+            <th onclick="sortTable(15)" style="cursor:pointer;text-align:right">Importe Total Neto</th>
+            <th onclick="sortTable(16)" style="cursor:pointer">LCE Aplicada</th>
+            <th onclick="sortTable(17)" style="cursor:pointer;text-align:right">Aplicaci&oacute;n</th>
+            <th onclick="sortTable(18)" style="cursor:pointer;text-align:right">Valor Compra</th>
+            <th onclick="sortTable(19)" style="cursor:pointer;text-align:right">IGV</th>
+            <th onclick="sortTable(20)" style="cursor:pointer;text-align:right">Valor Venta</th>
+            <th onclick="sortTable(21)" style="cursor:pointer">U.M.</th>
+            <th onclick="sortTable(22)" style="cursor:pointer">Dictamen</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -997,7 +1042,8 @@ async function exportExcel() {
   const ws = workbook.addWorksheet('REPORTE LC');
 
   const headers = [
-    'FECHA','DOCUMENTO','TIPO','DNI PROVEEDOR','NOMBRE PROVEEDOR',
+    'FECHA','DOCUMENTO','TIPO','CODIGO','PRODUCTO',
+    'DNI PROVEEDOR','NOMBRE PROVEEDOR',
     'TIPO UBICACION CLIENTE','DIRECCION PROVEEDOR','GLOSA',
     'TIPO UBICACION EMPRESA','DIRECCION EMPRESA',
     'CANTIDAD','VALOR UNITARIO','IMPORTE TOTAL NETO',
@@ -1011,7 +1057,8 @@ async function exportExcel() {
 
   results.forEach(r => {
     const row = ws.addRow([
-      r.fecha, r.docId, r.tipo, r.dniProveedor, r.nombreProveedor,
+      r.fecha, r.docId, r.tipo, r.codigo, r.descripcion,
+      r.dniProveedor, r.nombreProveedor,
       r.tipoUbicCliente, r.dirProveedor, r.glosa,
       r.tipoUbicEmpresa, r.dirEmpresaCompleta,
       r.cantidad, r.valorUnitario, r.totalNeto,
@@ -1039,48 +1086,50 @@ async function exportExcel() {
 
     // Resaltado adicional por campo específico observado (igual criterio que el Python),
     // sobreescribiendo el color de fondo de la celda puntual que falló.
-    const cellTipoUbicCliente = row.getCell(7);
+    const cellTipoUbicCliente = row.getCell(9);
     if (r.tipoUbicClienteObs) {
       cellTipoUbicCliente.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellTipoUbicEmpresa = row.getCell(10);
+    const cellTipoUbicEmpresa = row.getCell(12);
     if (r.tipoUbicEmpresaObs) {
       cellTipoUbicEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellDirEmpresa = row.getCell(11);
+    const cellDirEmpresa = row.getCell(13);
     if (r.dirEmpresaObs || r.dirEmpresaVacia) {
       cellDirEmpresa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellValorUnit = row.getCell(13);
+    const cellValorUnit = row.getCell(15);
     if (r.valorUnitarioObs) {
       cellValorUnit.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellIgv = row.getCell(18);
+    const cellIgv = row.getCell(20);
     if (r.igvObs) {
       cellIgv.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellUnidad = row.getCell(20);
+    const cellUnidad = row.getCell(22);
     if (r.unidadMedidaObs) {
       cellUnidad.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
-    const cellGlosa = row.getCell(9);
+    const cellGlosa = row.getCell(11);
     if (r.glosaObs) {
       cellGlosa.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
     }
 
     // Formato numérico con separador de miles en columnas monetarias/cantidad
-    [11, 12, 13, 15, 16, 17, 18].forEach(col => {
+    [13, 14, 15, 17, 18, 19, 20].forEach(col => {
       row.getCell(col).numFmt = '#,##0.00';
     });
   });
 
   ws.columns.forEach(col => col.width = 20);
   ws.getColumn(3).width = 18;
-  ws.getColumn(6).width = 32;
-  ws.getColumn(8).width = 36;
-  ws.getColumn(9).width = 30;
-  ws.getColumn(11).width = 36;
-  ws.getColumn(21).width = 60;
+  ws.getColumn(4).width = 18;
+  ws.getColumn(5).width = 36;
+  ws.getColumn(8).width = 32;
+  ws.getColumn(10).width = 36;
+  ws.getColumn(11).width = 30;
+  ws.getColumn(13).width = 36;
+  ws.getColumn(22).width = 60;
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -1126,7 +1175,8 @@ function exportPdfSummary() {
   if (!results.length) return;
 
   const headers = [
-    '#','Fecha','Documento','Tipo','DNI','Nombre Proveedor',
+    '#','Fecha','Documento','Tipo','C&oacute;digo','Producto',
+    'DNI','Nombre Proveedor',
     'T.Ubic.Cli','Direcci&oacute;n Proveedor','Glosa',
     'T.Ubic.Emp','Direcci&oacute;n Empresa',
     'Cantidad','V.Unit.','Total Neto',
@@ -1142,6 +1192,8 @@ function exportPdfSummary() {
       r.fecha || '—',
       r.docId || '—',
       r.tipo || '—',
+      r.codigo || '—',
+      (r.descripcion || '—').substring(0, 32),
       r.dniProveedor || '—',
       (r.nombreProveedor || '—').substring(0, 28),
       r.tipoUbicCliente || '—',

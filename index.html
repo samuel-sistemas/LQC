@@ -5,8 +5,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.9.3.1">
-<meta name="revised" content="2026-09-03">
+<meta name="version" content="1.6.22.1">
+<meta name="revised" content="2026-06-22">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
@@ -89,6 +89,10 @@
   }
   header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
   header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
+  .app-version {
+    display: block; font-family: var(--mono); font-size: .58rem;
+    color: var(--muted); opacity: .5; letter-spacing: .07em; margin-top: 2px;
+  }
 
   .header-controls { display: flex; align-items: center; gap: 10px; margin-left: auto; }
   .font-size-ctrl {
@@ -370,6 +374,7 @@
   <div class="logo">LQC</div>
   <div>
     <h1>ANALIZADOR XML <span>&middot; Liquidaciones de Compra &middot; Comercio Amazon&#237;a</span></h1>
+    <span id="app-version" class="app-version"></span>
   </div>
   <div class="header-controls">
     <div class="font-size-ctrl" title="Ajustar tama&#241;o de texto">
@@ -1237,6 +1242,9 @@ function initPreferences() {
     $('aside-toggle').textContent = '▼ EXPANDIR PANEL';
     $('aside-toggle').title = 'Expandir panel';
   }
+
+  const vMeta = document.querySelector('meta[name="version"]');
+  if (vMeta) $('app-version').textContent = 'v' + vMeta.getAttribute('content');
 }
 
 // ─── MANEJO DE ARCHIVOS ───────────────────────────────────────────────────────

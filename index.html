@@ -5,8 +5,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.22.1">
-<meta name="revised" content="2026-06-22">
+<meta name="version" content="1.9.3.1">
+<meta name="revised" content="2026-09-03">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Liquidaciones de Compra · Comercio Amazonía</title>
@@ -425,7 +425,7 @@
         <div class="stat-card info"><div class="val" id="s-kgm">0</div>  <div class="lbl">Unid. ≠ KGM</div></div>
         <div class="stat-card info"><div class="val" id="s-igv">0</div>  <div class="lbl">IGV > 0</div></div>
         <div class="stat-card info"><div class="val" id="s-dir">0</div>  <div class="lbl">Direcci&oacute;n fuera de la Empresa</div></div>
-        <div class="stat-card info"><div class="val" id="s-pre">0</div>  <div class="lbl">Precio Unitario > 20</div></div>
+        <div class="stat-card info"><div class="val" id="s-pre">0</div>  <div class="lbl">Precio Unitario > 30</div></div>
         <div class="stat-card info"><div class="val" id="s-tipo">0</div>  <div class="lbl">Tipo Err&oacute;neo</div></div>                
         <div class="stat-card fatal"><div class="val" id="s-err">0</div>  <div class="lbl">Err&oacute;neos (No le&iacute;dos)</div></div>
       </div>
@@ -467,7 +467,7 @@ const TIPO_UBICACION_EMPRESA_ESPERADO = '01';
 /** Unidad de medida esperada */
 const UNIDAD_MEDIDA_ESPERADA = 'KGM';
 /** Valor unitario máximo permitido antes de observar */
-const VALOR_UNITARIO_MAX = 20;
+const VALOR_UNITARIO_MAX = 30;
 
 /**
  * Lista de direcciones de entrega (DeliveryLocation) permitidas/conocidas.
